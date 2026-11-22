@@ -1,0 +1,709 @@
+<!doctype html><html><head><meta charset=utf8><meta name=viewport content="width=device-width,initial-scale=1"><style>:root{color-scheme:light}body{margin:0;padding:0;font:14px -apple-system,BlinkMacSystemFont,sans-serif;background:#fff;color:#000}img{max-width:100%}[hidden]:not([hidden=until-found i]){display:none!important}</style></head><body>
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>TangibleQR Generator</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Instrument+Sans:wght@400;500;600&family=JetBrains+Mono:wght@400;500&family=Unbounded:wght@500&display=swap" rel="stylesheet">
+<style>
+/* Layout: tool shell. Left sidebar of controls, right stage showing the card as it will be printed and cut. */
+:root{
+  --bg:#ECECEA;
+  --panel:#F7F7F5;
+  --ink:#151515;
+  --muted:#6B6B66;
+  --line:#D6D6D1;
+  --accent:#2E47D9;
+  --accent-soft:#E3E7FB;
+  --stage:#DADAD5;
+  --stage-dot:#C4C4BE;
+  --warn:#A86A00;
+  --bad:#B3261E;
+  --good:#2E7D4F;
+  --font-display:"Unbounded", "Instrument Sans", system-ui, sans-serif;
+  --font-body:"Instrument Sans", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --font-mono:"JetBrains Mono", ui-monospace, Menlo, monospace;
+  color-scheme: light;
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --bg:#121212; --panel:#1B1B1B; --ink:#EDEDEA; --muted:#9A9A94; --line:#2E2E2C;
+    --accent:#8DA0FF; --accent-soft:#232A4D; --stage:#262624; --stage-dot:#333331;
+    --warn:#E0A54A; --bad:#F08A80; --good:#7BC79A; color-scheme: dark;
+  }
+}
+:root[data-theme="dark"]{
+  --bg:#121212; --panel:#1B1B1B; --ink:#EDEDEA; --muted:#9A9A94; --line:#2E2E2C;
+  --accent:#8DA0FF; --accent-soft:#232A4D; --stage:#262624; --stage-dot:#333331;
+  --warn:#E0A54A; --bad:#F08A80; --good:#7BC79A; color-scheme: dark;
+}
+*{box-sizing:border-box}
+html,body{height:100%;margin:0}
+body{background:var(--bg);color:var(--ink);font:14px/1.5 var(--font-body);display:flex;flex-direction:column}
+header{display:flex;align-items:baseline;gap:16px;padding:14px 20px;border-bottom:1px solid var(--line);background:var(--panel);flex-wrap:wrap}
+header h1{font:500 17px/1.2 var(--font-display);margin:0;letter-spacing:-0.01em;text-wrap:balance}
+header p{margin:0;color:var(--muted);font-size:13px}
+.app{flex:1;display:grid;grid-template-columns:350px 1fr;min-height:0}
+aside{background:var(--panel);border-right:1px solid var(--line);overflow-y:auto;display:flex;flex-direction:column}
+nav{display:grid;grid-template-columns:repeat(5,1fr);border-bottom:1px solid var(--line);position:sticky;top:0;background:var(--panel);z-index:2}
+nav button{border:0;background:none;padding:10px 2px;font:500 12px/1.25 var(--font-body);color:var(--muted);cursor:pointer;border-bottom:2px solid transparent}
+nav button[aria-selected="true"]{color:var(--ink);border-bottom-color:var(--accent)}
+nav button:focus-visible{outline:2px solid var(--accent);outline-offset:-2px}
+.panel{padding:16px 18px 28px;display:none;flex-direction:column;gap:16px}
+.panel.on{display:flex}
+.group{display:flex;flex-direction:column;gap:10px}
+.group h2{font:600 11px var(--font-body);text-transform:uppercase;letter-spacing:.08em;color:var(--muted);margin:4px 0 0}
+.field{display:flex;flex-direction:column;gap:4px}
+.field label,.lbl{font-size:13px;display:flex;justify-content:space-between;gap:8px}
+.val{font:12px var(--font-mono);color:var(--muted);font-variant-numeric:tabular-nums}
+input[type=range]{width:100%;accent-color:var(--accent)}
+input[type=text],input[type=date],input[type=time],input[type=number],select{font:14px var(--font-body);color:var(--ink);background:var(--bg);border:1px solid var(--line);border-radius:6px;padding:6px 8px;width:100%}
+input:focus-visible,select:focus-visible,button:focus-visible{outline:2px solid var(--accent);outline-offset:1px}
+.row{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+.btn{font:500 13px var(--font-body);border:1px solid var(--line);background:var(--bg);color:var(--ink);border-radius:6px;padding:7px 12px;cursor:pointer}
+.btn:hover{border-color:var(--muted)}
+.btn:disabled{opacity:.45;cursor:default}
+.btn.primary{background:var(--accent);border-color:var(--accent);color:#fff}
+:root[data-theme="dark"] .btn.primary{color:#0D0F1F}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]) .btn.primary{color:#0D0F1F}}
+.btn.small{padding:3px 8px;font-size:12px}
+.check{display:flex;align-items:center;gap:8px;font-size:13px}
+.check input{accent-color:var(--accent)}
+.note{font-size:12px;color:var(--muted);margin:0}
+.wall{font-size:13px;padding:8px 10px;border-radius:6px;border:1px solid var(--line)}
+.wall.good{color:var(--good)} .wall.warn{color:var(--warn)} .wall.bad{color:var(--bad)}
+.person{display:grid;grid-template-columns:1fr 74px auto;gap:6px;padding:8px;border:1px solid var(--line);border-radius:8px;background:var(--bg);align-items:center}
+.person .meta{grid-column:1/-1;display:flex;gap:6px;align-items:center;flex-wrap:wrap;font-size:12px;color:var(--muted)}
+.chip{font:11px var(--font-mono);padding:1px 6px;border-radius:99px;background:var(--accent-soft);color:var(--accent)}
+.chip.bad{background:transparent;border:1px solid var(--bad);color:var(--bad)}
+.dot{width:10px;height:10px;border-radius:50%;display:inline-block}
+.file{position:relative;overflow:hidden}
+.file input{position:absolute;inset:0;opacity:0;cursor:pointer}
+.code{font:12px var(--font-mono);color:var(--muted);background:var(--bg);border:1px solid var(--line);border-radius:6px;padding:8px 10px;line-height:1.6;white-space:pre-wrap}
+main{display:flex;flex-direction:column;min-width:0;min-height:0}
+.stage{flex:1;min-height:0;display:flex;align-items:center;justify-content:center;padding:24px;background-color:var(--stage);background-image:radial-gradient(var(--stage-dot) 1px,transparent 1.2px);background-size:14px 14px;overflow:auto}
+.stage canvas{display:block;filter:drop-shadow(0 6px 18px rgba(0,0,0,.18))}
+.caption{padding:10px 20px;border-top:1px solid var(--line);background:var(--panel);font-size:12px;color:var(--muted);min-height:38px}
+.bar{display:flex;gap:10px;align-items:center;flex-wrap:wrap;padding:10px 20px;border-top:1px solid var(--line);background:var(--panel)}
+.bar select{width:auto}
+.bar .grow{flex:1}
+.tests{display:grid;grid-template-columns:repeat(auto-fill,minmax(170px,1fr));gap:20px;width:100%;max-width:1000px;align-self:flex-start}
+.tests figure{margin:0;display:flex;flex-direction:column;gap:6px;align-items:center}
+.tests figcaption{font-size:12px;color:var(--muted);text-align:center}
+.archive{display:grid;grid-template-columns:repeat(auto-fill,minmax(170px,1fr));gap:16px;width:100%;max-width:1100px;align-self:flex-start}
+.card{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:10px;display:flex;flex-direction:column;gap:6px}
+.card img{width:100%;border-radius:6px;background:var(--stage);cursor:pointer}
+.card .t{font-size:13px;font-weight:500}
+.card .s{font-size:11px;color:var(--muted);font-family:var(--font-mono)}
+.empty{color:var(--muted);text-align:center;max-width:360px}
+.toast{position:fixed;left:50%;bottom:20px;transform:translateX(-50%);background:var(--ink);color:var(--bg);padding:8px 14px;border-radius:8px;font-size:13px;opacity:0;pointer-events:none;transition:opacity .2s}
+.toast.on{opacity:1}
+.modal{position:fixed;inset:0;background:rgba(0,0,0,.45);display:none;align-items:center;justify-content:center;z-index:10;padding:20px}
+.modal.on{display:flex}
+.modal .box{background:var(--panel);border-radius:12px;padding:18px;max-width:640px;width:100%;max-height:90%;overflow:auto;display:flex;flex-direction:column;gap:10px}
+.modal img{max-width:100%;background:repeating-conic-gradient(#ccc 0 25%,#fff 0 50%) 0 0/16px 16px}
+.modal textarea{width:100%;height:220px;font:11px var(--font-mono)}
+.err{color:var(--bad);font-size:12px;margin:0}
+@media (max-width:820px){.app{grid-template-columns:1fr}aside{border-right:0;border-bottom:1px solid var(--line);max-height:none}main{min-height:520px}}
+@media (prefers-reduced-motion: reduce){.toast{transition:none}}
+</style>
+</head>
+<body>
+<header>
+  <h1>TangibleQR Generator</h1>
+  <p>Event and personal patterns for the shared-memory machine. Your personal pattern is your ID: the same shape is cut into every event card you share.</p>
+</header>
+<div class="app">
+<aside>
+  <nav role="tablist">
+    <button role="tab" id="tab-event-style" data-tab="event-style">Event style</button>
+    <button role="tab" id="tab-event" data-tab="event">Event</button>
+    <button role="tab" id="tab-personal-style" data-tab="personal-style">Personal style</button>
+    <button role="tab" id="tab-personal" data-tab="personal">Personal</button>
+    <button role="tab" id="tab-archive" data-tab="archive">Archive</button>
+  </nav>
+
+  <section class="panel" id="p-event-style">
+    <div id="sl-event" class="group"></div>
+    <div id="wall" class="wall"></div>
+    <div class="group" id="sf-event"></div>
+  </section>
+
+  <section class="panel" id="p-personal-style">
+    <div id="sl-personal" class="group"></div>
+    <div id="idmm" class="wall"></div>
+    <p class="note">These settings also shape every ID hole on event cards, scaled down to the event's ID size. Widths above assume an 85 mm card.</p>
+    <div class="group" id="sf-personal"></div>
+  </section>
+
+  <section class="panel" id="p-event">
+    <div class="group">
+      <h2>Meeting</h2>
+      <div class="row">
+        <div class="field" style="flex:1"><label for="evDate">Date</label><input type="date" id="evDate"></div>
+        <div class="field" style="flex:1"><label for="evTime">Time</label><input type="time" id="evTime"></div>
+      </div>
+    </div>
+    <div class="group">
+      <h2>People, in speaking order</h2>
+      <div id="people" class="group"></div>
+      <div class="row">
+        <button class="btn" id="addPerson">Add person</button>
+        <button class="btn" id="regen">New simulated recordings</button>
+      </div>
+      <p class="note">ID # is each person's registration number. It sets the shape of their hole. Upload a recording to use its real length and volume envelope.</p>
+    </div>
+    <div class="group">
+      <h2>Layers</h2>
+      <label class="check"><input type="checkbox" id="L_stamp" checked>Time → ball on the rim</label>
+      <label class="check"><input type="checkbox" id="L_slot" checked>People → slot balls</label>
+      <label class="check"><input type="checkbox" id="L_path" checked>Speaking order → path</label>
+      <label class="check"><input type="checkbox" id="L_voice" checked>Voice → path width</label>
+      <label class="check"><input type="checkbox" id="colorBy">Color by speaker</label>
+    </div>
+    <div class="group">
+      <h2>Card view</h2>
+      <select id="viewSel" aria-label="Card view"></select>
+      <div id="stackBox" class="group" style="display:none"></div>
+      <p class="note">Own card: your ID is printed white, everyone else's ID is cut through. Stack: holes of the selected people are filled.</p>
+    </div>
+  </section>
+
+  <section class="panel" id="p-personal">
+    <div class="group">
+      <h2>Person</h2>
+      <div class="field"><label for="pName">Name</label><input type="text" id="pName" value="Yanwen"></div>
+      <div class="field"><label for="pReg"><span>Registration number</span><span class="val">1 to 154</span></label><input type="number" id="pReg" min="1" max="154" step="1" value="125"></div>
+      <p class="err" id="pRegErr"></p>
+    </div>
+    <div class="group">
+      <h2>How it's built</h2>
+      <div class="code" id="pCode"></div>
+      <p class="note">Registration number → which outer nodes exist (2 to 4, read clockwise from the top, simplest shapes first). Name → each spoke in turn takes the next letter: vowels make it thick, consonants thin, and the letter's place in the alphabet nudges that node's size.</p>
+    </div>
+  </section>
+
+  <section class="panel" id="p-archive">
+    <div class="group">
+      <h2>Archive</h2>
+      <p class="note" id="archiveSrc">Loading the archive.</p>
+      <div class="row">
+        <button class="btn" id="arExport">Export archive JSON</button>
+        <span class="btn file">Import JSON<input type="file" id="arImport" accept=".json,application/json"></span>
+      </div>
+      <p class="err" id="arErr"></p>
+      <p class="note">Each entry stores its inputs and both styles, so opening it regenerates the exact pattern.</p>
+    </div>
+  </section>
+</aside>
+
+<main>
+  <div class="stage" id="stage"></div>
+  <div class="caption" id="caption"></div>
+  <div class="bar" id="exportBar">
+    <label for="pngSize" class="note">PNG width</label>
+    <select id="pngSize"><option>1024</option><option selected>2048</option><option>4096</option></select>
+    <button class="btn" id="savePng">Save transparent PNG</button>
+    <button class="btn" id="saveSvg">Save SVG</button>
+    <span class="grow"></span>
+    <span class="note" id="progress"></span>
+    <button class="btn primary" id="saveArchive">Save to archive</button>
+  </div>
+</main>
+</div>
+
+<div class="toast" id="toast" role="status" aria-live="polite"></div>
+<div class="modal" id="modal" role="dialog" aria-modal="true" aria-labelledby="modalTitle">
+  <div class="box">
+    <div class="row" style="justify-content:space-between"><strong id="modalTitle">File</strong><button class="btn small" id="modalClose">Close</button></div>
+    <p class="note" id="modalNote"></p>
+    <div id="modalBody"></div>
+  </div>
+</div>
+
+<script>
+"use strict";
+/* ============================== style.js ============================== */
+const STYLE_DEF={
+  event:{key:"mcg-style",file:"event-style",defaults:{nodeRadius:0.45,bridgeMin:0.12,bridgeMax:0.28,diagonalFactor:0.84,smoothness:0.22,slotScale:1.15,idRatio:0.62,gridMargin:0.14,cardAspect:1},
+    meta:[["Shape","nodeRadius","Node radius","× spacing",0.15,0.5,0.01],["Shape","bridgeMin","Thinnest bridge","× spacing",0.03,0.3,0.01],["Shape","bridgeMax","Thickest bridge","× spacing",0.08,0.45,0.01],["Shape","diagonalFactor","Diagonal factor","×",0.5,1.2,0.01],["Shape","smoothness","Smoothness","× spacing",0,0.3,0.01],
+      ["Slot and ID","slotScale","Slot scale","× node radius",0.8,1.5,0.01],["Slot and ID","idRatio","ID size","× slot radius",0.3,0.9,0.01],["Layout","gridMargin","Grid margin","× card width",0.05,0.25,0.005],["Layout","cardAspect","Card aspect","height / width",1,1.6,0.01]]},
+  personal:{key:"mcg-style-personal",file:"personal-style",defaults:{nodeRadius:0.34,centerScale:1.61,bridgeMin:0.20,bridgeMax:0.21,diagonalFactor:1.11,smoothness:0.16,nameBallRange:0.14,gridMargin:0.16,cardAspect:1},
+    meta:[["Shape","nodeRadius","Outer ball radius","× spacing",0.12,0.45,0.01],["Shape","centerScale","Center ball","× outer ball",0.8,1.8,0.01],["Shape","bridgeMin","Consonant bridge","× spacing",0.03,0.3,0.01],["Shape","bridgeMax","Vowel bridge","× spacing",0.06,0.4,0.01],["Shape","diagonalFactor","Diagonal factor","×",0.5,1.2,0.01],["Shape","smoothness","Smoothness","× spacing",0,0.3,0.01],
+      ["Name","nameBallRange","Letter size range","± × outer ball",0,0.4,0.01],["Layout","gridMargin","Grid margin","× card width",0.05,0.3,0.005],["Layout","cardAspect","Card aspect","height / width",1,1.6,0.01]]}
+};
+function lsGet(k){try{return localStorage.getItem(k)}catch(e){return null}}
+function lsSet(k,v){try{localStorage.setItem(k,v);return true}catch(e){return false}}
+const keysOf=kind=>Object.keys(STYLE_DEF[kind].defaults);
+function validStyle(kind,o){return o&&typeof o==="object"&&keysOf(kind).every(k=>typeof o[k]==="number"&&isFinite(o[k]))}
+function pickStyle(kind,o){const s={};keysOf(kind).forEach(k=>s[k]=o[k]);return s}
+function loadStyle(kind){try{const o=JSON.parse(lsGet(STYLE_DEF[kind].key));if(validStyle(kind,o))return pickStyle(kind,o)}catch(e){}return {...STYLE_DEF[kind].defaults}}
+const ST={event:loadStyle("event"),personal:loadStyle("personal")};
+function wallOf(s){return s.nodeRadius*s.slotScale*(1-s.idRatio)}
+
+/* ============================== util ============================== */
+function rng(s){return function(){s|=0;s=s+0x6D2B79F5|0;let t=Math.imul(s^s>>>15,1|s);t=t+Math.imul(t^t>>>7,61|t)^t;return((t^t>>>14)>>>0)/4294967296}}
+function hs(str){let h=2166136261;for(const ch of String(str)){h^=ch.charCodeAt(0);h=Math.imul(h,16777619)}return h>>>0}
+function smin(a,b,k){if(k<=1e-9)return a<b?a:b;const h=Math.max(k-Math.abs(a-b),0)/k;return (a<b?a:b)-h*h*k*0.25}
+const clamp01=v=>v<0?0:v>1?1:v;
+const PAL=[[83,74,183],[15,110,86],[216,90,48],[212,83,126],[24,95,165],[99,153,34],[186,117,23],[226,75,74],[95,94,90],[127,119,221]];
+const INK=[21,21,21],PAPER=[246,245,240];
+
+/* ============================== sdf.js (renderer, knows nothing about mapping) ============================== */
+/* scene = {grid, nodes:[{c,r,kind,s,owner}], caps:[{ax,ay,bx,by,v,dg,owner}], slots:[{c,r,owner,glyph:{nodes,caps}}]}
+   node kinds: "slot" (× slotScale), "center" (× centerScale), "outer" (× 1 + nameBallRange·s), anything else (× 1) */
+function mkPrim(ax,ay,bx,by,r,owner){const dx=bx-ax,dy=by-ay;return {ax,ay,bx,by,r,owner,dx,dy,l2:dx*dx+dy*dy,x0:Math.min(ax,bx),x1:Math.max(ax,bx),y0:Math.min(ay,by),y1:Math.max(ay,by)}}
+function primDist(p,x,y){let t=0;if(p.l2>0){t=((x-p.ax)*p.dx+(y-p.ay)*p.dy)/p.l2;t=t<0?0:t>1?1:t}const ex=p.ax+t*p.dx-x,ey=p.ay+t*p.dy-y;return Math.sqrt(ex*ex+ey*ey)-p.r}
+function radiusOf(n,st){return n.kind==="slot"?(st.slotScale||1):n.kind==="center"?(st.centerScale||1):n.kind==="outer"?1+(st.nameBallRange||0)*(n.s||0):1}
+function capWidth(c,st){return (st.bridgeMin+(st.bridgeMax-st.bridgeMin)*c.v)*(c.dg?st.diagonalFactor:1)}
+function bboxOf(prims){let x0=1e9,y0=1e9,x1=-1e9,y1=-1e9;for(const p of prims){x0=Math.min(x0,p.x0-p.r);y0=Math.min(y0,p.y0-p.r);x1=Math.max(x1,p.x1+p.r);y1=Math.max(y1,p.y1+p.r)}return {cx:(x0+x1)/2,cy:(y0+y1)/2}}
+function shiftPrims(prims,dx,dy){return prims.map(p=>mkPrim(p.ax+dx,p.ay+dy,p.bx+dx,p.by+dy,p.r,p.owner))}
+function compileGlyph(glyph,st){/* glyph on a 3x3 grid, spacing 1, centered on its bounding box */
+  let prims=[];
+  for(const n of glyph.nodes){const x=n.c-1,y=n.r-1,r=st.nodeRadius*radiusOf(n,st);prims.push(mkPrim(x,y,x,y,r,0))}
+  for(const c of glyph.caps)prims.push(mkPrim(c.ax-1,c.ay-1,c.bx-1,c.by-1,capWidth(c,st),0));
+  const bb=bboxOf(prims);prims=shiftPrims(prims,-bb.cx,-bb.cy);let B=0.5;
+  for(const p of prims)B=Math.max(B,Math.hypot(p.ax,p.ay)+p.r,Math.hypot(p.bx,p.by)+p.r);
+  return {prims,K:st.smoothness,B};
+}
+function compile(scene,st,idSt){
+  const g=scene.grid,m=st.gridMargin,sp=(1-2*m)/(g-1),H=st.cardAspect,ox=m,oy=(H-(g-1)*sp)/2;
+  let P=(c,r)=>[ox+c*sp,oy+r*sp];
+  const R=st.nodeRadius*sp,K=st.smoothness*sp;let prims=[];
+  for(const n of scene.nodes){const [x,y]=P(n.c,n.r);prims.push(mkPrim(x,y,x,y,R*radiusOf(n,st),n.owner))}
+  for(const c of scene.caps){const [ax,ay]=P(c.ax,c.ay),[bx,by]=P(c.bx,c.by);prims.push(mkPrim(ax,ay,bx,by,sp*capWidth(c,st),c.owner))}
+  if(scene.center==="bbox"&&prims.length){const bb=bboxOf(prims),dx=0.5-bb.cx,dy=H/2-bb.cy;prims=shiftPrims(prims,dx,dy);const P0=P;P=(c,r)=>{const q=P0(c,r);return [q[0]+dx,q[1]+dy]}}
+  const ids=(scene.slots||[]).map(s=>{const [x,y]=P(s.c,s.r);const S=R*(st.slotScale||1)*(st.idRatio||0.6);const gl=compileGlyph(s.glyph,idSt);return {x,y,S,sc:S/gl.B,prims:gl.prims,K:gl.K,owner:s.owner}});
+  return {prims,ids,K,H,P,sp,R};
+}
+function idField(d,x,y){const lx=(x-d.x)/d.sc,ly=(y-d.y)/d.sc;let f=1e9;for(const p of d.prims)f=smin(f,primDist(p,lx,ly),d.K);return f*d.sc}
+function patternField(comp,x,y){let f=1e9;for(const p of comp.prims)f=smin(f,primDist(p,x,y),comp.K);return f}
+function idsField(ids,x,y){let f=1e9;for(const d of ids){const dx=x-d.x,dy=y-d.y;if(dx*dx+dy*dy>d.S*d.S*1.5)continue;const v=idField(d,x,y);if(v<f)f=v}return f}
+
+/* view = {printed:Set, holes:Set}, mode: "preview" (card paper, holes cut) | "export" (transparent, ink + white IDs) */
+function rasterRows(comp,W,Hp,opt,D,tr0,tr1){
+  const T=16,u=1/W,K=comp.K,prims=comp.prims,ids=comp.ids,ntx=Math.ceil(W/T);
+  const holes=opt.view.holes,colorBy=opt.colorBy,preview=opt.mode==="preview";
+  const cr=0.035,hw=0.5,hh=comp.H/2;
+  for(let ty=tr0;ty<tr1;ty++)for(let tx=0;tx<ntx;tx++){
+    const px0=tx*T,px1=Math.min(W,px0+T),py0=ty*T,py1=Math.min(Hp,py0+T);
+    const x0=(px0-1)*u,x1=(px1+1)*u,y0=(py0-1)*u,y1=(py1+1)*u;
+    let ub=1e9,minlb=1e9;const lbs=new Float64Array(prims.length);
+    for(let i=0;i<prims.length;i++){const p=prims[i];
+      const gx=p.x0>x1?p.x0-x1:x0>p.x1?x0-p.x1:0,gy=p.y0>y1?p.y0-y1:y0>p.y1?y0-p.y1:0;const lb=Math.sqrt(gx*gx+gy*gy)-p.r;lbs[i]=lb;if(lb<minlb)minlb=lb;
+      const u1=Math.max(primDist(p,x0,y0),primDist(p,x1,y0),primDist(p,x0,y1),primDist(p,x1,y1));if(u1<ub)ub=u1}
+    const keep=[];for(let i=0;i<prims.length;i++)if(lbs[i]<=ub+K)keep.push(prims[i]);
+    const outside=(minlb-K*0.25*Math.max(1,keep.length))>2*u;
+    const idk=[];for(const d of ids){const gx=d.x<x0?x0-d.x:d.x>x1?d.x-x1:0,gy=d.y<y0?y0-d.y:d.y>y1?d.y-y1:0;if(gx*gx+gy*gy<=d.S*d.S*1.5)idk.push(d)}
+    /* field on the tile plus a 1px border, so each pixel's gradient can normalize its anti-aliasing */
+    const tw=px1-px0+2,th=py1-py0+2;let fv=null,ow=null;
+    if(!outside){fv=new Float64Array(tw*th);if(colorBy)ow=new Int16Array(tw*th);
+      for(let j=0;j<th;j++){const y=(py0-1+j+0.5)*u;for(let i=0;i<tw;i++){const x=(px0-1+i+0.5)*u;let f=1e9,bd=1e9,o=-1;
+        for(const p of keep){const dd=primDist(p,x,y);f=smin(f,dd,K);if(colorBy&&dd<bd){bd=dd;o=p.owner}}fv[j*tw+i]=f;if(ow)ow[j*tw+i]=o}}}
+    for(let py=py0;py<py1;py++){const y=(py+0.5)*u;for(let px=px0;px<px1;px++){const x=(px+0.5)*u;
+      let aInk=0,owner=-1;
+      if(!outside){const li=px-px0+1,lj=py-py0+1,k=lj*tw+li,f=fv[k];
+        const gx=(fv[k+1]-fv[k-1])*0.5,gy=(fv[k+tw]-fv[k-tw])*0.5;let g=Math.sqrt(gx*gx+gy*gy);if(!(g>u*0.05))g=u;
+        aInk=clamp01(0.5-f/g);if(ow)owner=ow[k]}
+      let aId=0,io=-1;
+      if(aInk>0)for(const d of idk){const dx=x-d.x,dy=y-d.y;if(dx*dx+dy*dy>d.S*d.S*1.5)continue;const a=clamp01(0.5-idField(d,x,y)/u);if(a>aId){aId=a;io=d.owner}}
+      const isHole=io>=0&&holes.has(io);const i=(py*W+px)*4;
+      const inkA=aInk*(1-aId);const C=colorBy&&owner>=0?PAL[owner%PAL.length]:INK;
+      if(preview){
+        const qx=Math.abs(x-hw)-(hw-cr),qy=Math.abs(y-hh)-(hh-cr);const ox=Math.max(qx,0),oy=Math.max(qy,0);
+        const aC=clamp01(0.5-(Math.sqrt(ox*ox+oy*oy)+Math.min(Math.max(qx,qy),0)-cr)/u);
+        D[i]=PAPER[0]*(1-inkA)+C[0]*inkA;D[i+1]=PAPER[1]*(1-inkA)+C[1]*inkA;D[i+2]=PAPER[2]*(1-inkA)+C[2]*inkA;
+        D[i+3]=255*aC*(1-(isHole?aId*aInk:0));
+      }else{
+        const wA=isHole?0:aId*aInk,al=inkA+wA;
+        if(al>0){D[i]=(C[0]*inkA+255*wA)/al;D[i+1]=(C[1]*inkA+255*wA)/al;D[i+2]=(C[2]*inkA+255*wA)/al;D[i+3]=255*al}
+      }
+    }}
+  }
+}
+function rasterSync(comp,W,opt){const Hp=Math.round(W*comp.H);const img=new ImageData(W,Hp);rasterRows(comp,W,Hp,opt,img.data,0,Math.ceil(Hp/16));return img}
+async function rasterAsync(comp,W,opt,onProgress){const Hp=Math.round(W*comp.H);const img=new ImageData(W,Hp);const rows=Math.ceil(Hp/16);let r=0;
+  while(r<rows){const t0=performance.now();while(r<rows&&performance.now()-t0<30){rasterRows(comp,W,Hp,opt,img.data,r,r+1);r++}onProgress&&onProgress(r/rows);await new Promise(res=>setTimeout(res,0))}return img}
+
+/* marching squares → closed loops (card units). inside = F < 0 */
+function contours(F,H,N){
+  const M=Math.round(N*H),step=1/N,v=new Float64Array((N+1)*(M+1));
+  for(let j=0;j<=M;j++)for(let i=0;i<=N;i++){v[j*(N+1)+i]=(i===0||j===0||i===N||j===M)?1:F(i*step,j*step)}
+  const val=(i,j)=>v[j*(N+1)+i];const pts=new Map(),adj=new Map();
+  const hId=(i,j)=>j*N+i,vOff=(M+1)*N,vId=(i,j)=>vOff+j*(N+1)+i;
+  function pt(id,ax,ay,av,bx,by,bv){if(!pts.has(id)){const t=av/(av-bv);pts.set(id,[(ax+(bx-ax)*t)*step,(ay+(by-ay)*t)*step])}return id}
+  const link=(a,b)=>{if(!adj.has(a))adj.set(a,[]);if(!adj.has(b))adj.set(b,[]);adj.get(a).push(b);adj.get(b).push(a)};
+  const TBL=[[],[[3,0]],[[0,1]],[[3,1]],[[1,2]],[[3,0],[1,2]],[[0,2]],[[3,2]],[[2,3]],[[2,0]],[[0,1],[2,3]],[[2,1]],[[1,3]],[[1,0]],[[0,3]],[]];
+  for(let j=0;j<M;j++)for(let i=0;i<N;i++){
+    const tl=val(i,j),tr=val(i+1,j),br=val(i+1,j+1),bl=val(i,j+1);
+    const c=(tl<0?1:0)|(tr<0?2:0)|(br<0?4:0)|(bl<0?8:0);if(c===0||c===15)continue;
+    const E=e=>e===0?pt(hId(i,j),i,j,tl,i+1,j,tr):e===1?pt(vId(i+1,j),i+1,j,tr,i+1,j+1,br):e===2?pt(hId(i,j+1),i,j+1,bl,i+1,j+1,br):pt(vId(i,j),i,j,tl,i,j+1,bl);
+    for(const [a,b] of TBL[c])link(E(a),E(b));
+  }
+  const seen=new Set(),loops=[];
+  for(const start of adj.keys()){if(seen.has(start))continue;const loop=[];let prev=-1,cur=start;
+    while(cur!==undefined&&!seen.has(cur)){seen.add(cur);loop.push(pts.get(cur));const nb=adj.get(cur);const nx=nb[0]!==prev?nb[0]:nb[1];prev=cur;cur=nx}
+    if(loop.length>2)loops.push(loop)}
+  return loops;
+}
+function loopsToD(loops,scale){let d="";for(const L of loops){let last=null;let s="";for(const p of L){const x=+(p[0]*scale).toFixed(3),y=+(p[1]*scale).toFixed(3);if(last&&Math.abs(last[0]-x)<0.02&&Math.abs(last[1]-y)<0.02)continue;s+=(s?"L":"M")+x+" "+y;last=[x,y]}d+=s+"Z"}return d}
+function buildSVG(comp,view,widthMM){
+  const N=900;
+  const ink=(x,y)=>Math.max(patternField(comp,x,y),-idsField(comp.ids,x,y));
+  const holeIds=comp.ids.filter(d=>view.holes.has(d.owner));
+  const cut=(x,y)=>Math.max(idsField(holeIds,x,y),patternField(comp,x,y));
+  const s=widthMM,h=+(comp.H*s).toFixed(3);
+  const inkD=loopsToD(contours(ink,comp.H,N),s);
+  const cutD=holeIds.length?loopsToD(contours(cut,comp.H,N),s):"";
+  return '<?xml version="1.0" encoding="UTF-8"?>\n<svg xmlns="http://www.w3.org/2000/svg" width="'+s+'mm" height="'+h+'mm" viewBox="0 0 '+s+' '+h+'">\n'+
+    '<g id="card-outline" fill="none" stroke="#2E47D9" stroke-width="0.1"><rect x="0" y="0" width="'+s+'" height="'+h+'" rx="'+(0.035*s).toFixed(3)+'"/></g>\n'+
+    '<g id="print"><path fill="#000000" fill-rule="evenodd" d="'+inkD+'"/></g>\n'+
+    (cutD?'<g id="cut" fill="none" stroke="#FF0000" stroke-width="0.1"><path d="'+cutD+'"/></g>\n':'')+'</svg>\n';
+}
+
+/* ============================== personal.js (data → scene) ============================== */
+/* Registration number → which of the 8 outer nodes exist (2–4 nodes, simplest first). Name → per-spoke width and node size. */
+const OUT=[[1,0],[2,0],[2,1],[2,2],[1,2],[0,2],[0,1],[0,0]];
+const OUT_NAMES=["N","NE","E","SE","S","SW","W","NW"];
+const CODES=(()=>{const a=[];const pc=m=>{let c=0;while(m){c+=m&1;m>>=1}return c};for(let k=2;k<=4;k++)for(let m=1;m<256;m++)if(pc(m)===k)a.push(m);return a})();
+const MAX_REG=CODES.length;
+const VOWELS="aeiou";
+function personalScene(inp){
+  const reg=Math.min(MAX_REG,Math.max(1,Math.round(+inp.reg||1))),code=CODES[reg-1];
+  const letters=String(inp.name||"").toLowerCase().replace(/[^a-z]/g,"");
+  const nodes=[{c:1,r:1,kind:"center",owner:0}],caps=[],spokes=[];let k=0;
+  for(let i=0;i<8;i++)if((code>>i)&1){const [c,r]=OUT[i];const ch=letters?letters[k%letters.length]:"";
+    const v=ch?(VOWELS.includes(ch)?1:0):0.5,s=ch?((ch.charCodeAt(0)-97)/25)*2-1:0;
+    nodes.push({c,r,kind:"outer",s,owner:0});caps.push({ax:1,ay:1,bx:c,by:r,v,owner:0,dg:c!==1&&r!==1});
+    spokes.push({dir:OUT_NAMES[i],letter:ch||"–",thick:v===1});k++}
+  return {grid:3,center:"bbox",nodes,caps,slots:[],reg,code,spokes,
+    info:"ID #"+reg+" · "+spokes.length+" nodes ("+spokes.map(s=>s.dir).join(", ")+")"+(letters?" · "+spokes.map(s=>s.letter.toUpperCase()+(s.thick?" thick":" thin")).join(", "):"")};
+}
+function glyphFor(person){const s=personalScene({reg:person.reg,name:person.name});return {nodes:s.nodes,caps:s.caps}}
+
+/* ============================== event.js (data → scene) ============================== */
+const RING=[[2,0],[3,0],[4,0],[4,1],[4,2],[4,3],[4,4],[3,4],[2,4],[1,4],[0,4],[0,3],[0,2],[0,1],[0,0],[1,0]];
+const cheb=(a,b)=>Math.max(Math.abs(a[0]-b[0]),Math.abs(a[1]-b[1]));
+function simVoice(name,i,regen){const R=rng(hs("voice|"+name+"|"+i+"|"+regen));const dur=10+Math.floor(R()*171);const env=[];for(let j=0;j<8;j++)env.push(+R().toFixed(3));return {dur,env}}
+function routePts(A,B,blocked){const pts=[[A[0],A[1]]];let cx=A[0],cy=A[1],g=0;
+  while((cx!==B[0]||cy!==B[1])&&g++<12){const sx=Math.sign(B[0]-cx),sy=Math.sign(B[1]-cy);const opts=[[sx,sy],[sx,0],[0,sy]].filter(v=>v[0]||v[1]);
+    let pick=opts[0];for(const v of opts){const nx=cx+v[0],ny=cy+v[1];if((nx===B[0]&&ny===B[1])||!blocked.has(nx+","+ny)){pick=v;break}}cx+=pick[0];cy+=pick[1];pts.push([cx,cy])}return pts}
+function nm(people,i){return people[i]&&people[i].name?people[i].name:"P"+(i+1)}
+function eventScene(inp){
+  const L=inp.layers,people=inp.people,n=people.length;
+  const tv=inp.time||"00:00",dv=inp.date||"";const tp=tv.split(":").map(Number);const hh=tp[0]||0,mm=tp[1]||0;
+  const stamp=RING[Math.round(((hh%12)+mm/60)/12*16)%16],stampK=stamp.join(",");
+  const R=rng(hs(dv+"|"+tv));const cand=[];for(let r=0;r<5;r++)for(let c=0;c<5;c++)if(c+","+r!==stampK)cand.push([c,r]);
+  for(let i=cand.length-1;i>0;i--){const j=Math.floor(R()*(i+1));[cand[i],cand[j]]=[cand[j],cand[i]]}
+  const cells=[];for(const gap of [2,1]){for(const p of cand){if(cells.length>=n)break;if(cells.some(s=>s[0]===p[0]&&s[1]===p[1]))continue;if(cells.every(s=>cheb(s,p)>=gap))cells.push(p)}if(cells.length>=n)break}
+  const blocked=new Set(cells.map(p=>p.join(",")));blocked.add(stampK);
+  const nodes=new Map(),caps=[],slots=[];
+  const addN=(c,r,owner,kind)=>{const k=c+","+r;if(!nodes.has(k))nodes.set(k,{c,r,owner,kind})};
+  if(L.slot)cells.forEach(([c,r],i)=>{addN(c,r,i,"slot");slots.push({c,r,owner:i,glyph:glyphFor(people[i])})});
+  let mode="";
+  if(L.path&&cells.length>=2){
+    const segs=[];for(let i=0;i<cells.length-1;i++)segs.push({pts:routePts(cells[i],cells[i+1],blocked),a:i,b:-1});
+    const last=cells.length-1;
+    if(cells.length>=3){const lp=routePts(cells[last],cells[0],blocked);if(lp.length-1<=3){segs.push({pts:lp,a:last,b:-1});mode="Closed loop back to "+nm(people,0)+" ("+(lp.length-1)+" steps)."}else{segs[segs.length-1].b=last;mode="Loop would take "+(lp.length-1)+" steps, so the last segment is split between "+nm(people,last-1)+" and "+nm(people,last)+"."}}
+    else{segs[0].b=1;mode="Two people: the segment is split half and half."}
+    const vOf=(ow,t)=>{if(!L.voice)return 0.5;const p=people[ow];const ln=clamp01((p.dur-10)/170);const e=p.env[Math.min(7,Math.floor(t*8))]||0;return 0.5*ln+0.5*e};
+    for(const s of segs){const m=s.pts.length-1,half=s.b>=0?m/2:m;
+      for(let j=0;j<m;j++){const p=s.pts[j],q=s.pts[j+1];if(j>0)addN(p[0],p[1],s.a,"path");
+        const pieces=[];if(s.b<0||j+1<=half)pieces.push([0,1,s.a]);else if(j>=half)pieces.push([0,1,s.b]);else{const f=half-j;pieces.push([0,f,s.a]);pieces.push([f,1,s.b])}
+        for(const [u0,u1,ow] of pieces){const um=j+(u0+u1)/2;const t=ow===s.a?um/half:(um-half)/(m-half);
+          caps.push({ax:p[0]+(q[0]-p[0])*u0,ay:p[1]+(q[1]-p[1])*u0,bx:p[0]+(q[0]-p[0])*u1,by:p[1]+(q[1]-p[1])*u1,owner:ow,v:vOf(ow,Math.max(0,Math.min(0.999,t))),dg:p[0]!==q[0]&&p[1]!==q[1]})}}}
+  }
+  if(L.stamp)addN(stamp[0],stamp[1],-1,"stamp");
+  const info=(L.stamp?"Time ball at the "+((hh%12)||12)+":"+String(mm).padStart(2,"0")+" position. ":"")+(mode?mode+" ":"")+"Seats seeded by "+dv+" "+tv+".";
+  return {grid:5,nodes:[...nodes.values()],caps,slots,info};
+}
+
+/* ============================== test glyphs ============================== */
+function testScene(edges,slotList){const nodes=new Map(),caps=[];const isS=new Set(slotList.map(p=>p.join(",")));
+  for(const e of edges){[[e[0],e[1]],[e[2],e[3]]].forEach(([c,r])=>{const k=c+","+r;if(!nodes.has(k))nodes.set(k,{c,r,kind:isS.has(k)?"slot":"node",owner:0})});
+    caps.push({ax:e[0],ay:e[1],bx:e[2],by:e[3],v:e.length>4?e[4]:0.5,owner:0,dg:e[0]!==e[2]&&e[1]!==e[3]})}
+  return {grid:5,nodes:[...nodes.values()],caps,slots:slotList.map((p,i)=>({c:p[0],r:p[1],owner:i,glyph:glyphFor({reg:[5,40,110][i],name:["Ana","Ben","Chen"][i]})}))}}
+const TESTS=[
+  ["Ring and counter",testScene([[0,0,1,1],[2,0,1,1],[2,0,3,1],[4,0,3,1],[0,2,1,1],[0,2,1,3],[4,2,3,1],[4,2,3,3],[0,4,1,3],[2,4,1,3],[2,4,3,3],[4,4,3,3]],[])],
+  ["Path and ends",testScene([[0,0,1,1],[1,1,2,1],[2,1,3,0],[3,0,4,0],[1,1,1,2],[1,2,1,3],[1,3,0,4],[2,1,2,2],[2,2,3,3],[3,3,4,4],[3,3,3,4],[2,2,3,2],[3,2,4,1]],[])],
+  ["Slots and voice path",testScene([[1,1,2,2,0],[2,2,3,3,1],[3,3,3,2,0.2],[3,2,3,1,0.8],[3,1,2,0,1],[2,0,1,1,0.4]],[[1,1],[3,3],[3,1]])]
+];
+const PERSONAL_SAMPLES=[[1,"Ana"],[12,"Ben"],[29,"Chen"],[60,"Dara"],[100,"Eli"],[154,"Fumiko"]];
+
+/* ============================== app state ============================== */
+const $=id=>document.getElementById(id);
+const state={
+  tab:"event",
+  event:{date:"2026-11-08",time:"12:12",regen:0,people:[],layers:{stamp:true,slot:true,path:true,voice:true}},
+  personal:{name:"Yanwen",reg:125},
+  view:"full",stack:new Set([0]),colorBy:false
+};
+[["Yanwen",125,43],["Eva",154,70],["Migos",124,109],["Soomin",80,112],["Hollie",24,119]].forEach(([n,reg,dur],i)=>state.event.people.push({name:n,reg,source:"sim",dur,env:simVoice(n,i,0).env}));
+
+function viewSets(){
+  if(state.tab!=="event")return {printed:new Set(),holes:new Set()};
+  const all=[...Array(state.event.people.length).keys()];
+  if(state.view==="full")return {printed:new Set(all),holes:new Set()};
+  if(state.view==="stack")return {printed:new Set(all.filter(i=>state.stack.has(i))),holes:new Set(all.filter(i=>!state.stack.has(i)))};
+  const own=+state.view.slice(4);return {printed:new Set([own]),holes:new Set(all.filter(i=>i!==own))};
+}
+function currentScene(){return state.tab==="personal"?personalScene(state.personal):eventScene(state.event)}
+function currentComp(){return state.tab==="personal"?compile(personalScene(state.personal),ST.personal,ST.personal):compile(eventScene(state.event),ST.event,ST.personal)}
+
+/* ============================== rendering to the stage ============================== */
+const stage=$("stage");let mainCanvas=null,testCanvases=[];
+const isStyleTab=t=>t==="event-style"||t==="personal-style";
+function setupStage(){
+  stage.innerHTML="";testCanvases=[];mainCanvas=null;
+  if(isStyleTab(state.tab)){const wrap=document.createElement("div");wrap.className="tests";
+    const items=state.tab==="event-style"?[...TESTS.map(t=>t[0]),"Current event"]:[...PERSONAL_SAMPLES.map(([r,n])=>"#"+r+" "+n),"Current personal","Current event (IDs)"];
+    items.forEach(t=>{const f=document.createElement("figure");const c=document.createElement("canvas");const cap=document.createElement("figcaption");cap.textContent=t;f.append(c,cap);wrap.append(f);testCanvases.push(c)});
+    stage.append(wrap);
+  }else if(state.tab==="archive"){const wrap=document.createElement("div");wrap.className="archive";wrap.id="archiveGrid";stage.append(wrap);renderArchive()}
+  else{mainCanvas=document.createElement("canvas");mainCanvas.setAttribute("role","img");stage.append(mainCanvas)}
+  $("exportBar").style.display=(state.tab==="event"||state.tab==="personal")?"flex":"none";
+}
+function paint(canvas,comp,cssW,low,view,colorBy){
+  const dpr=Math.min(2,window.devicePixelRatio||1);
+  const W=Math.max(40,Math.round(cssW*dpr*(low?0.5:1)));
+  const img=rasterSync(comp,W,{mode:"preview",view,colorBy});
+  canvas.width=W;canvas.height=img.height;canvas.style.width=cssW+"px";canvas.style.height=(cssW*comp.H)+"px";
+  canvas.getContext("2d").putImageData(img,0,0);
+}
+const allPrinted=()=>({printed:new Set(state.event.people.map((_,k)=>k)),holes:new Set()});
+function renderMain(low){
+  if(isStyleTab(state.tab)){
+    const w=Math.max(140,Math.min(200,(stage.clientWidth-100)/4));
+    if(state.tab==="event-style"){
+      TESTS.forEach((t,i)=>paint(testCanvases[i],compile(t[1],ST.event,ST.personal),w,low,{printed:new Set([0,1,2]),holes:new Set()},false));
+      paint(testCanvases[3],compile(eventScene(state.event),ST.event,ST.personal),w,low,allPrinted(),false);
+      $("caption").textContent="Test glyphs use fixed structures, so only the event style changes them. IDs inside slots follow the personal style.";
+    }else{
+      PERSONAL_SAMPLES.forEach(([r,n],i)=>paint(testCanvases[i],compile(personalScene({reg:r,name:n}),ST.personal,ST.personal),w,low,{printed:new Set(),holes:new Set()},false));
+      paint(testCanvases[6],compile(personalScene(state.personal),ST.personal,ST.personal),w,low,{printed:new Set(),holes:new Set()},false);
+      paint(testCanvases[7],compile(eventScene(state.event),ST.event,ST.personal),w,low,allPrinted(),false);
+      $("caption").textContent="Samples span simple to complex registration numbers. The last card shows how these shapes read at ID size inside an event card.";
+    }
+    return;
+  }
+  if(!mainCanvas)return;
+  const scene=currentScene();const comp=state.tab==="personal"?compile(scene,ST.personal,ST.personal):compile(scene,ST.event,ST.personal);
+  const st=state.tab==="personal"?ST.personal:ST.event;
+  const availW=stage.clientWidth-48,availH=stage.clientHeight-48;
+  const cssW=Math.max(200,Math.min(640,availW,availH/st.cardAspect));
+  const view=viewSets();const colorBy=state.tab==="event"&&state.colorBy;
+  paint(mainCanvas,comp,cssW,low,view,colorBy);
+  if(colorBy){const ctx=mainCanvas.getContext("2d");const k=mainCanvas.width;ctx.font=Math.round(12*k/cssW)+"px Instrument Sans, sans-serif";ctx.textAlign="center";ctx.textBaseline="middle";
+    scene.slots.forEach(s=>{const [x,y]=comp.P(s.c,s.r);const off=comp.R*st.slotScale+0.03;const yy=y-off<0.03?y+off:y-off;ctx.fillStyle="rgb("+PAL[s.owner%PAL.length].join(",")+")";ctx.fillText(nm(state.event.people,s.owner),x*k,yy*k)})}
+  mainCanvas.setAttribute("aria-label",state.tab==="event"?"Event card pattern":"Personal card pattern");
+  if(state.tab==="event")$("caption").textContent=scene.info+" Recordings: "+state.event.people.map(p=>p.name+" "+p.dur+" s"+(p.source==="audio"?" (audio)":"")).join(" · ");
+  else{$("caption").textContent="Personal pattern for "+(state.personal.name||"unnamed")+". "+scene.info;renderCode(scene)}
+}
+let fullTimer=null;
+function requestRender(low){renderMain(!!low);clearTimeout(fullTimer);if(low)fullTimer=setTimeout(()=>renderMain(false),200)}
+
+/* ============================== style panels ============================== */
+function buildStylePanel(kind){
+  const box=$("sl-"+kind);box.innerHTML="";let group="";
+  STYLE_DEF[kind].meta.forEach(([g,key,label,unit,min,max,step])=>{
+    if(g!==group){group=g;const h=document.createElement("h2");h.textContent=g;box.append(h)}
+    const f=document.createElement("div");f.className="field";const id="s_"+kind+"_"+key;
+    f.innerHTML='<label for="'+id+'"><span>'+label+' <span class="note">'+unit+'</span></span><span class="val" id="v_'+kind+'_'+key+'"></span></label><input type="range" id="'+id+'" min="'+min+'" max="'+max+'" step="'+step+'">';
+    box.append(f);const inp=f.querySelector("input");inp.value=ST[kind][key];
+    inp.addEventListener("input",()=>{ST[kind][key]=+inp.value;styleChanged(kind,true)});
+    inp.addEventListener("change",()=>styleChanged(kind,false));
+  });
+  const sf=$("sf-"+kind);
+  sf.innerHTML='<h2>Style file</h2><div class="row"><button class="btn" data-a="reset">Reset to defaults</button><button class="btn" data-a="copy">Copy</button></div>'+
+    '<div class="row"><button class="btn" data-a="save">Save style file</button><span class="btn file">Load style file<input type="file" accept=".json,application/json" aria-label="Load '+kind+' style file"></span></div><p class="err"></p>';
+  const err=sf.querySelector(".err"),name=STYLE_DEF[kind].file;
+  sf.addEventListener("click",async e=>{const a=e.target.dataset&&e.target.dataset.a;if(!a)return;
+    if(a==="reset"){ST[kind]={...STYLE_DEF[kind].defaults};styleChanged(kind,false)}
+    else if(a==="copy"){const t=JSON.stringify(ST[kind],null,2);try{await navigator.clipboard.writeText(t);toast("Style copied")}catch(x){showText(name,"Copy the text below.",t)}}
+    else if(a==="save")offerFile("tangibleqr-"+name+".json",JSON.stringify({kind,style:ST[kind]},null,2),"text")});
+  sf.querySelector("input[type=file]").addEventListener("change",async e=>{const f=e.target.files[0];e.target.value="";if(!f)return;err.textContent="";
+    try{let o=JSON.parse(await f.text());if(o&&o.style)o=o.style;if(!validStyle(kind,o)){err.textContent="That file is missing "+kind+" style keys: "+keysOf(kind).filter(k=>!o||typeof o[k]!=="number").join(", ")+".";return}
+      ST[kind]=pickStyle(kind,o);styleChanged(kind,false);toast("Style loaded")}catch(x){err.textContent="That file isn't valid JSON. Save a style file from this page and load it again."}});
+  syncStyleUI(kind);
+}
+function syncStyleUI(kind){keysOf(kind).forEach(k=>{const i=$("s_"+kind+"_"+k);if(i)i.value=ST[kind][k];const v=$("v_"+kind+"_"+k);if(v)v.textContent=(+ST[kind][k]).toFixed(k==="gridMargin"?3:2)});
+  if(kind==="event"){const w=wallOf(ST.event),el=$("wall");let cls="good",msg="Wall around ID: "+w.toFixed(3)+" × spacing. Safe.";
+    if(w<0.12){cls="bad";msg="Wall around ID: "+w.toFixed(3)+" × spacing. Too thin, the hole may break through."}else if(w<0.18){cls="warn";msg="Wall around ID: "+w.toFixed(3)+" × spacing. Tight, check before cutting."}
+    if(ST.event.bridgeMin>ST.event.bridgeMax){cls="bad";msg+=" Thinnest bridge is larger than thickest."}
+    el.className="wall "+cls;el.textContent=msg}
+  const ev=ST.event,ps=ST.personal,spMM=(1-2*ev.gridMargin)/4*85,S=ev.nodeRadius*spMM*ev.slotScale*ev.idRatio;
+  const B=Math.max(Math.SQRT2+ps.nodeRadius*(1+ps.nameBallRange),ps.nodeRadius*ps.centerScale),u=S/B;
+  const thin=2*ps.bridgeMin*Math.min(1,ps.diagonalFactor)*u,thick=2*ps.bridgeMax*Math.max(1,ps.diagonalFactor)*u,el2=$("idmm");
+  if(el2){const cls2=thin<0.8?"bad":thin<1.2?"warn":"good";el2.className="wall "+cls2;
+    el2.textContent="At ID size: thinnest spoke "+thin.toFixed(2)+" mm, thickest "+thick.toFixed(2)+" mm, ID about "+(2*S).toFixed(1)+" mm across."+(thin<0.8?" Too thin to cut or read.":thin<1.2?" Tight for cutting.":" Cuts cleanly.")}}
+function styleChanged(kind,low){syncStyleUI("event");syncStyleUI("personal");lsSet(STYLE_DEF[kind].key,JSON.stringify(ST[kind]));requestRender(low)}
+
+/* ============================== event panel ============================== */
+function nextReg(){const used=new Set(state.event.people.map(p=>p.reg));for(let r=1;r<=MAX_REG;r++)if(!used.has(r))return r;return 1}
+function renderPeople(){
+  const box=$("people");box.innerHTML="";const ps=state.event.people;
+  const regCount={};ps.forEach(p=>regCount[p.reg]=(regCount[p.reg]||0)+1);
+  ps.forEach((p,i)=>{const d=document.createElement("div");d.className="person";const c=PAL[i%PAL.length];
+    d.innerHTML='<input type="text" id="pn'+i+'" aria-label="Name of person '+(i+1)+'" value="'+escapeHtml(p.name)+'">'+
+      '<input type="number" id="pr'+i+'" min="1" max="'+MAX_REG+'" step="1" aria-label="ID number of person '+(i+1)+'" value="'+p.reg+'">'+
+      '<div class="row" style="gap:4px"><button class="btn small" data-up="'+i+'" aria-label="Move up"'+(i===0?' disabled':'')+'>↑</button><button class="btn small" data-rm="'+i+'" aria-label="Remove"'+(ps.length<=2?' disabled':'')+'>×</button></div>'+
+      '<div class="meta"><span class="dot" style="background:rgb('+c.join(",")+')"></span><span>Speaker '+(i+1)+'</span><span class="chip">'+(p.source==="audio"?"audio":"simulated")+' · '+p.dur+' s</span>'+
+      (regCount[p.reg]>1?'<span class="chip bad">Same ID # as another person</span>':'')+
+      '<span class="btn small file">Upload audio<input type="file" accept="audio/*" data-au="'+i+'" aria-label="Upload audio for person '+(i+1)+'"></span>'+
+      (p.source==="audio"?'<button class="btn small" data-sim="'+i+'">Use simulated</button>':'')+'</div>';
+    box.append(d);
+    d.querySelector("#pn"+i).addEventListener("input",e=>{p.name=e.target.value;updateViewSel();requestRender(true)});
+    d.querySelector("#pr"+i).addEventListener("change",e=>{const v=Math.round(+e.target.value);p.reg=Math.min(MAX_REG,Math.max(1,v||1));renderPeople();requestRender(false)});
+  });
+  $("addPerson").disabled=ps.length>=10;
+  updateViewSel();
+}
+$("people").addEventListener("click",e=>{const b=e.target.closest("button");if(!b||b.disabled)return;const ps=state.event.people;
+  if(b.dataset.up){const i=+b.dataset.up;[ps[i-1],ps[i]]=[ps[i],ps[i-1]];}
+  else if(b.dataset.rm){ps.splice(+b.dataset.rm,1);state.stack=new Set([...state.stack].filter(i=>i<ps.length))}
+  else if(b.dataset.sim){const i=+b.dataset.sim;Object.assign(ps[i],{source:"sim",...simVoice(ps[i].name,i,state.event.regen)})}
+  else return;
+  renderPeople();requestRender(false)});
+$("people").addEventListener("change",async e=>{const inp=e.target;if(!inp.dataset||inp.dataset.au===undefined)return;const f=inp.files[0];if(!f)return;const i=+inp.dataset.au;
+  toast("Reading "+f.name);try{const r=await analyzeAudio(f);Object.assign(state.event.people[i],{source:"audio",dur:r.dur,env:r.env});renderPeople();requestRender(false);toast(f.name+": "+r.dur+" s")}
+  catch(err){toast("Couldn't read that audio file. Try a WAV or MP3.")}});
+$("addPerson").onclick=()=>{const ps=state.event.people;if(ps.length>=10)return;const name="P"+(ps.length+1);ps.push({name,reg:nextReg(),source:"sim",...simVoice(name,ps.length,state.event.regen)});renderPeople();requestRender(false)};
+$("regen").onclick=()=>{state.event.regen++;state.event.people.forEach((p,i)=>{if(p.source==="sim")Object.assign(p,simVoice(p.name,i,state.event.regen))});renderPeople();requestRender(false)};
+async function analyzeAudio(file){const buf=await file.arrayBuffer();const AC=window.OfflineAudioContext||window.webkitOfflineAudioContext;const ctx=new AC(1,44100,44100);
+  const audio=await new Promise((res,rej)=>{const p=ctx.decodeAudioData(buf,res,rej);if(p&&p.then)p.then(res,rej)});
+  const ch=audio.getChannelData(0),n=ch.length,env=[];for(let w=0;w<8;w++){const a=Math.floor(w*n/8),b=Math.floor((w+1)*n/8);let s=0;for(let k=a;k<b;k++)s+=ch[k]*ch[k];env.push(Math.sqrt(s/Math.max(1,b-a)))}
+  const mx=Math.max(...env)||1;return {dur:Math.max(1,Math.round(audio.duration)),env:env.map(v=>+(v/mx).toFixed(3))}}
+["L_stamp","L_slot","L_path","L_voice"].forEach(id=>$(id).addEventListener("change",e=>{state.event.layers[id.slice(2)]=e.target.checked;requestRender(false)}));
+$("colorBy").addEventListener("change",e=>{state.colorBy=e.target.checked;requestRender(false)});
+$("evDate").addEventListener("input",e=>{state.event.date=e.target.value;requestRender(true)});
+$("evTime").addEventListener("input",e=>{state.event.time=e.target.value;requestRender(true)});
+function updateViewSel(){const sel=$("viewSel"),ps=state.event.people;
+  if(state.view.startsWith("card")&&+state.view.slice(4)>=ps.length)state.view="full";
+  sel.innerHTML='<option value="full">Full pattern, all IDs printed</option>'+ps.map((p,i)=>'<option value="card'+i+'">Card for '+escapeHtml(p.name||"P"+(i+1))+'</option>').join("")+'<option value="stack">Stack of selected cards</option>';
+  sel.value=state.view;
+  const sb=$("stackBox");sb.style.display=state.view==="stack"?"flex":"none";
+  sb.innerHTML=ps.map((p,i)=>'<label class="check"><input type="checkbox" data-st="'+i+'"'+(state.stack.has(i)?" checked":"")+'>'+escapeHtml(p.name||"P"+(i+1))+'</label>').join("");
+}
+$("viewSel").addEventListener("change",e=>{state.view=e.target.value;updateViewSel();requestRender(false)});
+$("stackBox").addEventListener("change",e=>{const i=e.target.dataset.st;if(i===undefined)return;e.target.checked?state.stack.add(+i):state.stack.delete(+i);requestRender(false)});
+function escapeHtml(s){return String(s).replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]))}
+
+/* ============================== personal panel ============================== */
+$("pName").addEventListener("input",e=>{state.personal.name=e.target.value;requestRender(true)});
+$("pReg").addEventListener("input",e=>{const v=Math.round(+e.target.value);
+  if(!v||v<1||v>MAX_REG){$("pRegErr").textContent="Enter a number from 1 to "+MAX_REG+".";return}
+  $("pRegErr").textContent="";state.personal.reg=v;requestRender(false)});
+function renderCode(scene){const bits=[];for(let i=0;i<8;i++)bits.push((scene.code>>i)&1?OUT_NAMES[i]:"·");
+  $("pCode").textContent="ID #"+scene.reg+" of "+MAX_REG+"\nNodes  "+bits.join(" ")+"\nSpokes "+(scene.spokes.map(s=>s.dir+"="+s.letter.toUpperCase()+(s.thick?" thick":" thin")).join("  ")||"–")}
+
+/* ============================== export.js ============================== */
+let DL=null;
+function fileStem(){if(state.tab==="personal")return "personal_"+state.personal.reg+"_"+(state.personal.name||"unnamed").replace(/[^\w-]+/g,"_");
+  const e=state.event;const d=(e.date||"").replace(/-/g,""),t=(e.time||"").replace(":","");const v=state.view==="full"?"full":state.view==="stack"?"stack":(e.people[+state.view.slice(4)]||{}).name||"card";
+  return "event_"+d+"_"+t+"_n"+e.people.length+"_"+String(v).replace(/[^\w-]+/g,"_")}
+$("savePng").onclick=async()=>{const comp=currentComp(),W=+$("pngSize").value;const view=viewSets();
+  setBusy(true);try{const img=await rasterAsync(comp,W,{mode:"export",view,colorBy:false},p=>$("progress").textContent="Rendering "+Math.round(p*100)+"%");
+    const c=document.createElement("canvas");c.width=img.width;c.height=img.height;c.getContext("2d").putImageData(img,0,0);
+    const blob=await new Promise(r=>c.toBlob(r,"image/png"));await offerFile(fileStem()+".png",blob,"png")}
+  finally{setBusy(false)}};
+$("saveSvg").onclick=async()=>{setBusy(true);$("progress").textContent="Tracing outlines";await new Promise(r=>setTimeout(r,20));
+  try{const svg=buildSVG(currentComp(),viewSets(),85);await offerFile(fileStem()+".svg",svg,"text")}finally{setBusy(false)}};
+function setBusy(b){["savePng","saveSvg","saveArchive"].forEach(id=>$(id).disabled=b);if(!b)$("progress").textContent=""}
+async function offerFile(name,data,kind){
+  if(DL){try{const r=await DL.save({filename:name,data});toast(r&&r.status==="delivered"?"Sent "+name:"Saved "+name);return}
+    catch(e){const c=e&&e.code;if(c==="declined"){toast("Download cancelled");return}if(c==="rate_limited"){toast("A save prompt is already open");return}}}
+  if(kind==="png"){const url=URL.createObjectURL(data);showModal(name,"Downloads aren't available in this view. Right-click the image and save it.",'<img alt="Exported pattern" src="'+url+'">')}
+  else showText(name,"Downloads aren't available in this view. Copy the text and save it as "+name+".",data);
+}
+function showText(title,note,text){showModal(title,note,'<textarea id="modalText" readonly></textarea><div class="row"><button class="btn" id="modalCopy">Copy</button></div>');$("modalText").value=text;
+  $("modalCopy").onclick=async()=>{try{await navigator.clipboard.writeText(text);toast("Copied")}catch(e){$("modalText").select()}}}
+function showModal(title,note,html){$("modalTitle").textContent=title;$("modalNote").textContent=note;$("modalBody").innerHTML=html;$("modal").classList.add("on");$("modalClose").focus()}
+$("modalClose").onclick=()=>$("modal").classList.remove("on");
+$("modal").addEventListener("click",e=>{if(e.target.id==="modal")$("modal").classList.remove("on")});
+document.addEventListener("keydown",e=>{if(e.key==="Escape")$("modal").classList.remove("on")});
+let toastT;function toast(m){const t=$("toast");t.textContent=m;t.classList.add("on");clearTimeout(toastT);toastT=setTimeout(()=>t.classList.remove("on"),2400)}
+
+/* ============================== archive.js ============================== */
+let DB=null,archiveItems=[],archiveMode="local",dbCanWrite=true;
+function localArchive(){try{return JSON.parse(lsGet("mcg-archive")||"[]")}catch(e){return []}}
+function thumbOf(comp,view){const img=rasterSync(comp,160,{mode:"preview",view,colorBy:false});const c=document.createElement("canvas");c.width=img.width;c.height=img.height;c.getContext("2d").putImageData(img,0,0);return c.toDataURL("image/png")}
+function entryFromState(){const type=state.tab==="personal"?"personal":"event";
+  const comp=currentComp();const view=type==="event"?allPrinted():{printed:new Set(),holes:new Set()};
+  const inputs=type==="event"?JSON.parse(JSON.stringify(state.event)):{...state.personal};
+  const title=type==="event"?(state.event.date+" "+state.event.time+" · "+state.event.people.length+" people"):("#"+state.personal.reg+" "+(state.personal.name||"unnamed"));
+  const styles=type==="event"?{event:{...ST.event},personal:{...ST.personal}}:{personal:{...ST.personal}};
+  return {type,title,inputs,styles,createdAt:new Date().toISOString(),thumb:thumbOf(comp,view)}}
+$("saveArchive").onclick=async()=>{const entry=entryFromState();
+  if(DB&&archiveMode==="shared"){try{await DB.collection("archive").add(entry);toast("Saved to the shared archive")}
+    catch(e){const c=e&&e.code;if(c==="invalid_argument"){dbCanWrite=false;toast("You can view the shared archive but not add to it");saveLocal(entry)}else if(c==="quota_exceeded")toast("The shared archive is full. Delete some entries first.");else toast("Couldn't save right now. Try again.")}}
+  else saveLocal(entry)};
+function saveLocal(entry){const a=localArchive();a.unshift({...entry,id:"l"+Date.now()});if(!lsSet("mcg-archive",JSON.stringify(a))){toast("Browser storage is full or unavailable");return}if(archiveMode==="local"){archiveItems=a;renderArchive()}toast("Saved in this browser")}
+function renderArchive(){const grid=$("archiveGrid");
+  $("archiveSrc").textContent=archiveMode==="shared"?"Shared archive: everyone with access to this page sees the same entries."+(dbCanWrite?"":" You can view but not add."):"This browser's archive. Entries stay on this device only.";
+  if(!grid)return;grid.innerHTML="";
+  if(!archiveItems.length){grid.innerHTML='<p class="empty">No saved patterns yet. Generate one in the Event or Personal tab and choose Save to archive.</p>';grid.style.display="flex";grid.style.justifyContent="center";$("caption").textContent="";return}
+  grid.style.display="";
+  archiveItems.forEach(it=>{const d=document.createElement("div");d.className="card";
+    const date=new Date(it.createdAt);const ds=isNaN(date)?"":date.toLocaleDateString()+" "+date.toLocaleTimeString([], {hour:"2-digit",minute:"2-digit"});
+    d.innerHTML='<img alt="'+escapeHtml(it.title||it.type)+'" src="'+(String(it.thumb||"").startsWith("data:image/png")?it.thumb:"")+'"><div class="t">'+escapeHtml(it.title||it.type)+'</div><div class="s">'+escapeHtml(it.type)+' · saved '+escapeHtml(ds)+'</div><div class="row"><button class="btn small" data-open="'+escapeHtml(it.id)+'">Open</button><button class="btn small" data-del="'+escapeHtml(it.id)+'">Delete</button></div>';
+    grid.append(d)});
+  $("caption").textContent=archiveItems.length+" saved pattern"+(archiveItems.length===1?"":"s")+".";
+}
+$("stage").addEventListener("click",async e=>{const b=e.target.closest("button,img");if(!b||state.tab!=="archive")return;
+  const id=b.dataset.open||b.dataset.del||(b.tagName==="IMG"?b.parentElement.querySelector("[data-open]").dataset.open:null);if(!id)return;
+  const it=archiveItems.find(x=>x.id===id);if(!it)return;
+  if(b.dataset.del){if(archiveMode==="shared"&&DB){try{await DB.doc("archive/"+id).delete();toast("Deleted")}catch(err){toast("You can't delete shared entries")}}else{archiveItems=localArchive().filter(x=>x.id!==id);lsSet("mcg-archive",JSON.stringify(archiveItems));renderArchive()}return}
+  openEntry(it)});
+function applyStyle(kind,o){if(validStyle(kind,o)){ST[kind]=pickStyle(kind,o);syncStyleUI(kind);lsSet(STYLE_DEF[kind].key,JSON.stringify(ST[kind]));return true}return false}
+function openEntry(it){
+  const styles=it.styles||{};if(styles.personal)applyStyle("personal",styles.personal);if(styles.event)applyStyle("event",styles.event);if(!it.styles&&it.style)applyStyle("event",it.style);
+  if(it.type==="personal"){state.personal={name:String(it.inputs.name||""),reg:Math.min(MAX_REG,Math.max(1,Math.round(+it.inputs.reg||1)))};$("pName").value=state.personal.name;$("pReg").value=state.personal.reg;setTab("personal")}
+  else{const inp=it.inputs;state.event={date:inp.date,time:inp.time,regen:inp.regen||0,people:(inp.people||[]).slice(0,10).map((p,i)=>({name:String(p.name||""),reg:Math.min(MAX_REG,Math.max(1,Math.round(+p.reg||i+1))),source:p.source==="audio"?"audio":"sim",dur:+p.dur||10,env:(p.env||[]).slice(0,8).map(Number)})),layers:{stamp:true,slot:true,path:true,voice:true,...(inp.layers||{})}};
+    $("evDate").value=state.event.date;$("evTime").value=state.event.time;["stamp","slot","path","voice"].forEach(k=>$("L_"+k).checked=!!state.event.layers[k]);state.view="full";renderPeople();setTab("event")}
+  toast("Opened with its saved style")}
+$("arExport").onclick=()=>offerFile("tangibleqr-archive.json",JSON.stringify(archiveItems.map(({id,...r})=>r),null,1),"text");
+$("arImport").onchange=async e=>{const f=e.target.files[0];e.target.value="";if(!f)return;$("arErr").textContent="";let arr;
+  try{arr=JSON.parse(await f.text())}catch(err){$("arErr").textContent="That file isn't valid JSON. Use a file exported from this archive.";return}
+  if(!Array.isArray(arr)){$("arErr").textContent="Expected a list of archive entries.";return}
+  const ok=arr.filter(x=>x&&(x.type==="event"||x.type==="personal")&&x.inputs);let n=0;
+  if(archiveMode==="shared"&&DB&&dbCanWrite){for(const x of ok){try{await DB.collection("archive").add({type:x.type,title:String(x.title||""),inputs:x.inputs,styles:x.styles||{},createdAt:x.createdAt||new Date().toISOString(),thumb:String(x.thumb||"")});n++}catch(err){break}}}
+  else{const a=localArchive();ok.forEach(x=>{a.push({...x,id:"l"+Date.now()+"_"+(n++)})});lsSet("mcg-archive",JSON.stringify(a));archiveItems=a;renderArchive()}
+  toast("Imported "+n+" entr"+(n===1?"y":"ies"))};
+
+async function initCapabilities(){
+  if(!(window.claude&&typeof window.claude.use==="function")){archiveItems=localArchive();renderArchive();return}
+  try{DL=await window.claude.use("downloads")}catch(e){DL=null}
+  let db=null;try{db=await window.claude.use("db")}catch(e){db=null}
+  if(!db){archiveItems=localArchive();renderArchive();return}
+  DB=db;archiveMode="shared";
+  const timer=setTimeout(()=>{$("archiveSrc").textContent="The shared archive can't be reached yet."},10000);
+  DB.collection("archive").orderBy("createdAt","desc").limit(300).onSnapshot(snap=>{if(!snap.metadata.fromCache)clearTimeout(timer);archiveItems=snap.docs.map(d=>({id:d.id,...d.data()}));renderArchive()},
+    err=>{clearTimeout(timer);archiveMode="local";archiveItems=localArchive();renderArchive()});
+}
+archiveItems=localArchive();
+
+/* ============================== tabs ============================== */
+const TABS=["event-style","event","personal-style","personal","archive"];
+function setTab(t){if(!TABS.includes(t))t="event";state.tab=t;
+  document.querySelectorAll("nav button").forEach(b=>b.setAttribute("aria-selected",b.dataset.tab===t?"true":"false"));
+  TABS.forEach(x=>$("p-"+x).classList.toggle("on",x===t));
+  if(location.hash!=="#"+t)history.replaceState(null,"","#"+t);
+  setupStage();if(t!=="archive")requestRender(false)}
+document.querySelector("nav").addEventListener("click",e=>{const b=e.target.closest("button");if(b)setTab(b.dataset.tab)});
+window.addEventListener("hashchange",()=>{const t=location.hash.slice(1);if(t!==state.tab&&TABS.includes(t))setTab(t)});
+let rT;window.addEventListener("resize",()=>{clearTimeout(rT);rT=setTimeout(()=>{if(state.tab!=="archive")requestRender(false)},150)});
+
+/* init */
+$("evDate").value=state.event.date;$("evTime").value=state.event.time;$("pReg").max=MAX_REG;
+buildStylePanel("event");buildStylePanel("personal");renderPeople();
+setTab(TABS.includes(location.hash.slice(1))?location.hash.slice(1):"event");
+initCapabilities();
+window.__mcg={state,ST,compile,eventScene,personalScene,buildSVG,rasterSync,viewSets,CODES};
+</script>
+</body>
+</html>
+
+</body></html>
